@@ -1,26 +1,27 @@
-import json
 import pandas as pd
 import os
 from reportlab.pdfgen import canvas
 
-def export_results(results, format_type):
-    """Exports test results in CSV, JSON, or PDF format."""
-    
-    if not results:
-        print("No data to export.")
-        return
+# Ensure reports directory exists
+os.makedirs("reports", exist_ok=True)
 
-    os.makedirs("reports", exist_ok=True)
+def export_results(format_type):
+    """Exports test results in CSV, HTML, or PDF format."""
+    results_file = "reports/test_results.csv"  # Assume Locust saves results as CSV
 
+    if not os.path.exists(results_file) or os.path.getsize(results_file) == 0:
+        return None  # No results available
+
+    df = pd.read_csv(results_file)  # Load results
+
+    # Export based on format type
     if format_type == "CSV":
-        df = pd.DataFrame(results)
-        df.to_csv("reports/results.csv", index=False)
-        print("Results exported as CSV.")
+        return results_file  # Already in CSV format
 
-    elif format_type == "JSON":
-        with open("reports/results.json", "w") as f:
-            json.dump(results, f, indent=4)
-        print("Results exported as JSON.")
+    elif format_type == "HTML":
+        html_path = "reports/results.html"
+        df.to_html(html_path, index=False)
+        return html_path
 
     elif format_type == "PDF":
         pdf_path = "reports/results.pdf"
@@ -28,14 +29,15 @@ def export_results(results, format_type):
         c.drawString(100, 750, "OverloadX-2.0 Test Results")
 
         y = 730
-        for i, result in enumerate(results):
-            text = f"Test {i+1}: {result['name']} - {result.get('avg_response_time', 'N/A')} ms"
+        for i, row in df.iterrows():
+            text = f"{row['name']} - {row['num_requests']} Requests - {row['avg_response_time']} ms"
             c.drawString(100, y, text)
             y -= 20
-            if y < 100:  # Page handling
+            if y < 100:  # New page if needed
                 c.showPage()
                 y = 750
 
         c.save()
-        print("Results exported as PDF.")
+        return pdf_path
 
+    return None

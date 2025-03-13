@@ -2,9 +2,7 @@ import streamlit as st
 import subprocess
 import pandas as pd
 import os
-import json
-import matplotlib.pyplot as plt
-import utils  # Import utils properly
+import utils  # Import export functions
 
 # Ensure necessary directories exist
 os.makedirs("reports", exist_ok=True)
@@ -39,74 +37,18 @@ if st.button("🚀 Start Load Test"):
 
         # Check for errors
         if process.returncode != 0:
-            st.error("⚠️ An error occurred while running Locust.")
-            st.text(process.stderr)
+            st.error("⚠️ Locust encountered an error while running.")
         else:
-            st.success("✅ Test Completed! Check the reports below.")
+            st.success("✅ Test Completed! Download results below.")
 
-# Load and display test results
-st.subheader("📊 Test Results")
-results_file = "reports/test_results.json"
-
-if os.path.exists(results_file) and os.path.getsize(results_file) > 0:
-    try:
-        with open(results_file) as f:
-            results = json.load(f)
-
-        if not results or results[0]["num_requests"] == 0:
-            st.warning("⚠️ No requests were made during the test. Please check your URLs and try again.")
-        else:
-            # Convert to DataFrame
-            df = pd.DataFrame(results)
-
-            # Ensure required keys exist
-            expected_keys = ["name", "method", "num_requests", "num_failures", "avg_response_time"]
-            missing_keys = [key for key in expected_keys if key not in df.columns]
-
-            if missing_keys:
-                st.warning(f"⚠️ Missing test data: {', '.join(missing_keys)}. Displaying available results.")
-
-            # Display summary metrics
-            st.write("### 📌 Summary of Test Metrics")
-            metrics = {
-                "Total Requests": df["num_requests"].sum(),
-                "Total Failures": df["num_failures"].sum(),
-                "Average Response Time (ms)": round(df["avg_response_time"].mean(), 2),
-                "Min Response Time (ms)": df["min_response_time"].min(),
-                "Max Response Time (ms)": df["max_response_time"].max(),
-                "Requests Per Second": round(df["requests_per_second"].mean(), 2),
-            }
-            st.table(pd.DataFrame(metrics, index=["Values"]))
-
-            # Display detailed breakdown
-            st.write("### 📌 Detailed Endpoint Performance")
-            df_display = df[["name", "method", "num_requests", "num_failures", "avg_response_time"]]
-            df_display = df_display.rename(columns={
-                "name": "Endpoint",
-                "method": "Method",
-                "num_requests": "Requests",
-                "num_failures": "Failures",
-                "avg_response_time": "Avg Response Time (ms)"
-            })
-            st.table(df_display)
-
-            # Generate response time chart
-            st.subheader("📈 Response Time Distribution")
-            fig, ax = plt.subplots()
-            ax.hist(df["avg_response_time"], bins=10, edgecolor="black")
-            ax.set_xlabel("Response Time (ms)")
-            ax.set_ylabel("Frequency")
-            ax.set_title("Response Time Distribution")
-            st.pyplot(fig)
-
-            # Export options
-            st.subheader("📂 Export Results")
-            export_format = st.selectbox("Choose format", ["CSV", "JSON", "PDF"])
-            if st.button("📥 Export"):
-                utils.export_results(results, export_format)
-                st.success(f"✅ Results exported as {export_format}!")
-
-    except json.JSONDecodeError:
-        st.error("⚠️ Test results file is corrupted or empty. Run a test first.")
-else:
-    st.warning("⚠️ No test results found. Run a test first.")
+# Provide download options
+st.subheader("📂 Download Test Results")
+export_format = st.selectbox("Choose format", ["CSV", "HTML", "PDF"])
+if st.button("📥 Generate & Download"):
+    file_path = utils.export_results(export_format)
+    if file_path:
+        with open(file_path, "rb") as f:
+            st.download_button(label="📥 Click to Download", data=f, file_name=os.path.basename(file_path))
+        st.success(f"✅ Results exported as {export_format}!")
+    else:
+        st.error("⚠️ No test results available. Please run a test first.")

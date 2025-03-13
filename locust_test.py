@@ -1,5 +1,5 @@
 from locust import HttpUser, task, between, events
-import json
+import pandas as pd
 import os
 
 class WebsiteUser(HttpUser):
@@ -9,7 +9,7 @@ class WebsiteUser(HttpUser):
     def load_test(self):
         self.client.get("/")  # Replace with actual endpoint
 
-# Event listener to save results after the test
+# Save results to CSV after test completion
 @events.quitting.add_listener
 def save_results(environment, **kwargs):
     stats = []
@@ -25,23 +25,9 @@ def save_results(environment, **kwargs):
             "requests_per_second": stat.total_rps
         })
 
-    # Ensure results are saved even if no requests were made
-    if not stats:
-        stats.append({
-            "name": "No Data",
-            "method": "N/A",
-            "num_requests": 0,
-            "num_failures": 0,
-            "avg_response_time": 0,
-            "min_response_time": 0,
-            "max_response_time": 0,
-            "requests_per_second": 0
-        })
-
-    results_file = "reports/test_results.json"
+    results_file = "reports/test_results.csv"
     os.makedirs(os.path.dirname(results_file), exist_ok=True)
 
-    with open(results_file, "w") as f:
-        json.dump(stats, f, indent=4)
-
-    print(f"Results saved to {results_file}")
+    df = pd.DataFrame(stats)
+    df.to_csv(results_file, index=False)
+    print(f"✅ Results saved to {results_file}")
