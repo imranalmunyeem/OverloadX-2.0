@@ -49,19 +49,37 @@ st.subheader("Test Results")
 results_file = "reports/test_results.json"
 
 if os.path.exists(results_file) and os.path.getsize(results_file) > 0:
-    with open(results_file) as f:
-        results = json.load(f)
+    try:
+        with open(results_file) as f:
+            results = json.load(f)
 
-    # Debug: Print JSON structure
+        if not results:
+            st.warning("No test data found. Please run a test first.")
+            results = []
+
+    except json.JSONDecodeError:
+        st.error("Test results file is corrupted or empty. Run a test first.")
+        results = []
+else:
+    st.warning("No test results found. Run a test first.")
+    results = []
+
+# If there is valid test data
+if results:
+    # Debug: Print raw test data
     st.subheader("Raw Test Data")
-    st.write(results)  # Print raw JSON output to inspect structure
+    st.write(results)
 
     # Convert results to DataFrame
     df = pd.DataFrame(results)
 
-    # Check if 'avg_response_time' exists
-    if "avg_response_time" not in df.columns:
-        st.error("The key 'avg_response_time' is missing in test results. Check the raw test data.")
+    # Ensure all expected keys exist
+    expected_keys = ["name", "method", "num_requests", "num_failures", "avg_response_time"]
+    missing_keys = [key for key in expected_keys if key not in df.columns]
+
+    if missing_keys:
+        st.warning(f"Missing keys in test results: {', '.join(missing_keys)}. Showing available data.")
+        st.write(df)
     else:
         # Display key metrics
         st.write(df)
@@ -80,5 +98,3 @@ if os.path.exists(results_file) and os.path.getsize(results_file) > 0:
     if st.button("Export"):
         export_results(results, export_format)
         st.success(f"Results exported as {export_format}!")
-else:
-    st.warning("No valid test results found. Please run the test again.")
